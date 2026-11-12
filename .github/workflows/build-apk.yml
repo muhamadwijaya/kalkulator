@@ -1,0 +1,95 @@
+name: Build APK Kalkulator Saham
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'README.md'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Paket sistem
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            git zip unzip autoconf automake libtool pkg-config zlib1g-dev \
+            libncurses-dev cmake libffi-dev libssl-dev \
+            xvfb libgl1 libgl1-mesa-dri libegl1
+
+      - name: Uji logika + uji asap aplikasi (tanpa layar)
+        run: |
+          set -o pipefail
+          python -m pip install --upgrade pip
+          pip install kivy
+          python -c "import calc; r = calc.hitung(10_000_000, 2, 1000, 950, 2); assert r['lot'] == 40, r; print('calc OK')"
+          xvfb-run -a -s "-screen 0 1080x1920x24" python smoke_test.py 2>&1 | tee smoke.log
+
+      - name: Pasang Buildozer
+        run: |
+          pip install --upgrade buildozer "cython==0.29.37" virtualenv setuptools wheel
+
+      - name: Cache Buildozer
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.buildozer
+            .buildozer
+          key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
+
+      - name: Build APK
+        run: |
+          set -o pipefail
+          buildozer -v android debug 2>&1 | tee build.log
+          ls -la bin/
+
+      - name: Laporkan error sebagai anotasi
+        if: failure()
+        run: |
+          python3 - <<'EOF'
+          import os
+          for nama in ("smoke.log", "build.log"):
+              if not os.path.exists(nama):
+                  continue
+              baris = open(nama, errors="replace").read().splitlines()
+              baris = [b for b in baris if b.strip()][-160:]
+              teks = "\n".join(baris)
+              potong = [teks[i:i + 3000] for i in range(0, len(teks), 3000)][-9:]
+              for n, p in enumerate(potong, 1):
+                  p = p.replace("%", "%25").replace("\r", "").replace("\n", "%0A")
+                  print(f"::error title={nama} bagian {n}/{len(potong)}::{p}")
+          EOF
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kalkulator-saham-apk
+          path: bin/*.apk
+
+      - name: Terbitkan sebagai Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: kalkulator-saham-build-${{ github.run_number }}
+          name: Kalkulator Saham (build ${{ github.run_number }})
+          target_commitish: ${{ github.sha }}
+          prerelease: true
+          body: |
+            APK debug hasil build otomatis dari branch main.
+            Unduh file .apk di bawah, buka di HP Android, izinkan "Instal dari sumber tidak dikenal".
+          files: bin/*.apk
