@@ -4,12 +4,15 @@ Aplikasi Android kecil yang ditulis dengan Python (Kivy) untuk menghitung
 jumlah lot saham BEI dari modal, risiko per trade, harga entry, stop loss,
 dan target risk:reward.
 
-## Unduh APK
+## Build APK lewat Google Colab (bisa dari HP)
 
-Buka tab **Releases** di repo ini dan unduh file `.apk` terbaru, lalu pasang di HP
-Android (izinkan "Instal dari sumber tidak dikenal").
+[![Buka di Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/muhamadwijaya/kalkulator/blob/main/build_apk_colab.ipynb)
 
-## Cara kerja build
+Buka tautan di atas, pilih **Runtime → Run all**, tunggu 20–40 menit, lalu APK
+terunduh atau tersimpan ke Google Drive. Pasang di HP Android (izinkan
+"Instal dari sumber tidak dikenal").
+
+## Build lewat GitHub Actions (kalau Actions aktif)
 
 Setiap push ke `main` menjalankan GitHub Actions (`.github/workflows/build-apk.yml`):
 
